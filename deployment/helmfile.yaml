@@ -1,0 +1,43 @@
+# Pin the target cluster so a sync never lands on whatever kubectl context happens to be current.
+helmDefaults:
+  kubeContext: &kubeContext k3d-haven
+  wait: true
+
+releases:
+  # Install kgateway's custom resource definitions first
+  - name: kgateway-crds
+    namespace: kgateway-system
+    createNamespace: true
+    chart: oci://cr.kgateway.dev/kgateway-dev/charts/kgateway-crds
+    # Single source for the kgateway version; reused by the controller release below.
+    version: &kgatewayVersion "2.4.7"
+    hooks:
+      # Kubernetes Gateway API CRDs are required by kgateway but not shipped in its charts.
+      # kgateway 2.4.x is documented against Gateway API v1.6.1.
+      - events: ["presync"]
+        showlogs: true
+        command: kubectl
+        args:
+          - apply
+          - --server-side
+          - --context
+          - *kubeContext
+          - -f
+          - https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml
+
+  # Install the kgateway controller
+  - name: kgateway
+    namespace: kgateway-system
+    createNamespace: true
+    chart: oci://cr.kgateway.dev/kgateway-dev/charts/kgateway
+    version: *kgatewayVersion
+    needs:
+      - kgateway-system/kgateway-crds
+
+  # Install your application after kgateway
+  - name: hvn-platform
+    namespace: hvn-system
+    createNamespace: true
+    chart: ./haven-platform
+    needs:
+      - kgateway-system/kgateway

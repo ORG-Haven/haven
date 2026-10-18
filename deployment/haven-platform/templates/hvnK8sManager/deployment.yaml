@@ -1,0 +1,40 @@
+{{- $values := .Values.hvnK8sManager }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "haven.hvnK8sManager.fullname" . }}
+    namespace: {{ include "haven.hvnK8sManager.namespace" . }}
+    labels:
+        {{- include "haven.hvnK8sManager.labels" . | nindent 8 }}
+spec:
+    replicas: {{ $values.replicaCount }}
+    selector:
+        matchLabels:
+            {{- include "haven.hvnK8sManager.selectorLabels" . | nindent 12 }}
+    template:
+        metadata:
+            labels:
+                {{- include "haven.hvnK8sManager.labels" . | nindent 16 }}
+        spec:
+            serviceAccountName: {{ include "haven.hvnK8sManager.fullname" . }}
+            securityContext:
+                {{- toYaml $values.podSecurityContext | nindent 16 }}
+            containers:
+                - name: hvn-k8s-manager
+                  image: "{{ $values.image.repository }}:{{ $values.image.tag | default .Chart.AppVersion }}"
+                  imagePullPolicy: {{ $values.image.pullPolicy }}
+                  ports:
+                    - name: http
+                      containerPort: {{ $values.containerPort }}
+                      protocol: TCP
+                  env:
+                    - name: TRUSTED_PROXIES
+                      value: {{ $values.trustedProxies | quote }}
+                  livenessProbe:
+                    {{- toYaml $values.livenessProbe | nindent 20 }}
+                  readinessProbe:
+                    {{- toYaml $values.readinessProbe | nindent 20 }}
+                  resources:
+                    {{- toYaml $values.resources | nindent 20 }}
+                  securityContext:
+                    {{- toYaml $values.securityContext | nindent 20 }}

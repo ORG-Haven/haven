@@ -1,0 +1,54 @@
+hvnK8sManager:
+  replicaCount: 1
+  # Must match the port the app listens on (currently hardcoded to 8080 in cmd/main.go).
+  containerPort: 8080
+  image:
+    repository: hvn-k8s-manager
+    pullPolicy: IfNotPresent
+    # Defaults to the chart appVersion when empty.
+    tag: ""
+
+  # Comma separated CIDRs/IPs of proxies allowed to set X-Forwarded-For (e.g. the ingress
+  # controller pod CIDR). Leave empty to never trust X-Forwarded-For.
+  trustedProxies: ""
+
+  # Starting values; tune after observing real usage.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  # The image runs as the distroless nonroot user (65532).
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL

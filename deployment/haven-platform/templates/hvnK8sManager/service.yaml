@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ include "haven.hvnK8sManager.fullname" . }}
+    namespace: {{ include "haven.hvnK8sManager.namespace" . }}
+    labels:
+        {{- include "haven.hvnK8sManager.labels" . | nindent 8 }}
+spec:
+    type: ClusterIP
+    selector:
+        {{- include "haven.hvnK8sManager.selectorLabels" . | nindent 8 }}
+    ports:
+        - name: http
+          protocol: TCP
+          port: 80
+          targetPort: http
