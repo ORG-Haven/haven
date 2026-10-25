@@ -54,7 +54,7 @@ func main() {
 	if err != nil || hops < 0 {
 		hops = 0
 	}
-	limiter := auth.NewSignInLimiter(func(scope string, limit int, window time.Duration) auth.RateCounter {
+	limiter := auth.NewAuthLimiter(func(scope string, limit int, window time.Duration) auth.RateCounter {
 		return ratelimit.New(pool, scope, limit, window)
 	}, transport.ClientIP(hops))
 

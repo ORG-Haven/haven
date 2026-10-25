@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ActionButton, Icon } from "@/components/ui";
+import { ApiError } from "@/lib/api/errors";
 import { errorMessage } from "@/lib/format";
 import { useSignUp } from "@/lib/queries";
 import { AuthPanel } from "./AuthPanel";
@@ -14,6 +15,8 @@ const RULES = [
   { label: "Contains a letter", test: (p: string) => /[a-zA-Z]/.test(p) },
   { label: "Contains a number", test: (p: string) => /[0-9]/.test(p) },
 ];
+
+const accountExists = (err: unknown) => err instanceof ApiError && err.status === 409;
 
 export function SignUpView() {
   const router = useRouter();
@@ -60,7 +63,8 @@ export function SignUpView() {
 
           {signUp.isError && (
             <ErrorBanner>
-              {errorMessage(signUp.error)} <Link href="/signin">Sign in instead</Link>.
+              {errorMessage(signUp.error)}
+              {accountExists(signUp.error) && <> <Link href="/signin">Sign in instead</Link>.</>}
             </ErrorBanner>
           )}
 

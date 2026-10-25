@@ -68,8 +68,8 @@ func signedUpUserWithoutPassword() users.User {
 }
 
 // testLimiter keys by the test request's RemoteAddr and counts in memory.
-func testLimiter() *SignInLimiter {
-	return NewSignInLimiter(func(_ string, limit int, window time.Duration) RateCounter {
+func testLimiter() *AuthLimiter {
+	return NewAuthLimiter(func(_ string, limit int, window time.Duration) RateCounter {
 		return &memCounter{limit: limit, window: window, entries: map[string]*memEntry{}}
 	}, transport.ClientIP(0))
 }
