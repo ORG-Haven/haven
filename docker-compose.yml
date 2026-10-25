@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-haven}
+      POSTGRES_USER: ${POSTGRES_USER:-haven}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-haven}
+    # Internal network only, like the BFF and console. For a shell:
+    #   docker compose exec postgres psql -U haven -d haven
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  hvn-bff:
+    build: ./hvn-bff
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-haven}:${POSTGRES_PASSWORD:-haven}@postgres:5432/${POSTGRES_DB:-haven}?sslmode=disable
+      # Local compose serves plain HTTP; leave COOKIE_SECURE unset (on) behind HTTPS.
+      COOKIE_SECURE: "false"
+      # The origin browsers use, i.e. nginx's address. Use the https origin in production.
+      ALLOWED_ORIGINS: http://localhost:${HTTP_PORT:-8000}
+      # nginx writes X-Forwarded-For and Next passes it through unchanged, so one hop.
+      TRUSTED_PROXY_HOPS: "1"
+    # No published port: only nginx is reachable, so nobody can skip it and forge X-Forwarded-For.
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  hvn-console:
+    build: ./hvn-console
+    restart: unless-stopped
+    environment:
+      HVN_BFF_URL: http://hvn-bff:8080
+    # Reached through nginx only (see hvn-bff).
+    expose:
+      - "3000"
+    depends_on:
+      - hvn-bff
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/haven.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${HTTP_PORT:-8000}:80"
+    depends_on:
+      - hvn-console
+
+volumes:
+  postgres-data:
