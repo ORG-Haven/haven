@@ -9,6 +9,12 @@ import { useSignIn } from "@/lib/queries";
 import { AuthPanel } from "./AuthPanel";
 import { AuthBrand, AuthFooter, ErrorBanner, PasswordField, ProviderButtons } from "./parts";
 
+/** Where to go after signing in: the page the proxy turned the user away from, if it's one of ours. */
+function nextPath() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") && !next.startsWith("//") ? next : "/projects";
+}
+
 export function SignInView() {
   const router = useRouter();
   const signIn = useSignIn();
@@ -17,7 +23,7 @@ export function SignInView() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    signIn.mutate({ email, password }, { onSuccess: () => router.push("/projects") });
+    signIn.mutate({ email, password }, { onSuccess: () => router.replace(nextPath()) });
   };
 
   return (

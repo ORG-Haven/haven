@@ -169,7 +169,13 @@ export function useSignInWithProvider() {
   });
 }
 
-export const useSignUp = () => useMutation({ mutationFn: (input: SignUpInput) => api.signUp(input) });
+export function useSignUp() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SignUpInput) => api.signUp(input),
+    onSuccess: (session) => qc.setQueryData(queryKeys.session, session),
+  });
+}
 
 export function useSignOut() {
   const qc = useQueryClient();

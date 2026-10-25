@@ -10,3 +10,11 @@ var (
 	ErrHashPassword    = errors.New("hash password")
 	ErrCreateUser      = errors.New("create user")
 )
+
+var (
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrUnauthenticated    = errors.New("not signed in")
+	ErrSignIn             = errors.New("sign in")
+	ErrSignOut            = errors.New("sign out")
+	ErrCreateSession      = errors.New("create session")
+)

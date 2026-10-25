@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
-import { useSignOut } from "@/lib/queries";
+import { useSession, useSignOut } from "@/lib/queries";
 import { setTheme, useTheme } from "@/lib/theme";
 import { parseConsolePath, projectHref } from "./routes";
 
@@ -16,6 +16,7 @@ export function TopBar({ pathname }: { pathname: string | null }) {
   const route = parseConsolePath(pathname);
   const router = useRouter();
   const signOut = useSignOut();
+  const user = useSession().data?.user;
 
   return (
     <header className="topbar">
@@ -57,10 +58,16 @@ export function TopBar({ pathname }: { pathname: string | null }) {
         >
           <Icon name="logout" />
         </button>
-        <button className="ib" aria-label="Account menu">
-          <span className="avatar">SU</span>
+        <button className="ib" aria-label={user ? `Account menu for ${user.name}` : "Account menu"} title={user?.email}>
+          <span className="avatar">{initials(user?.name)}</span>
         </button>
       </div>
     </header>
   );
+}
+
+function initials(name?: string) {
+  if (!name) return "";
+  const parts = name.trim().split(/\s+/);
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }

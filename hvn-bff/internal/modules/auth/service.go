@@ -3,22 +3,33 @@ package auth
 import (
 	"context"
 	"errors"
+	"hvnBff/internal/modules/sessions"
 	"hvnBff/internal/modules/users"
 	"log/slog"
 	"net/mail"
 	"strings"
+	"time"
 )
 
 type UserStore interface {
 	Create(ctx context.Context, u users.User) error
+	GetByEmail(ctx context.Context, email string) (users.User, error)
+}
+
+type SessionStore interface {
+	Create(ctx context.Context, s sessions.Session) error
+	UserByToken(ctx context.Context, tokenHash string) (users.User, error)
+	Delete(ctx context.Context, tokenHash string) error
 }
 
 type Service struct {
-	users UserStore
+	users    UserStore
+	sessions SessionStore
+	now      func() time.Time
 }
 
-func NewService(store UserStore) *Service {
-	return &Service{users: store}
+func NewService(userStore UserStore, sessionStore SessionStore) *Service {
+	return &Service{users: userStore, sessions: sessionStore, now: time.Now}
 }
 
 func (s *Service) AppSignUp(ctx context.Context, req UserCreateReq) (UserCreateResp, error) {

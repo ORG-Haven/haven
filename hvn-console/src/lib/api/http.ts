@@ -1,7 +1,7 @@
 import { ApiError } from "./errors";
 
 /**
- * Calls one of the console's own /api routes, which forward to hvnBFF.
+ * Calls hvnBFF through the console’s /api path (see proxy.ts).
  * Error replies carry {"message"}, which is shown to the user as is.
  */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {

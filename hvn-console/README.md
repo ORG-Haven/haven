@@ -26,23 +26,34 @@ npm run lint
 | `src/lib/api/client.ts` | `HavenApi`, the interface the hooks call. |
 | `src/lib/api/mock/` | In-memory mock of the backend used today. |
 
-## Backend: mostly mocked
+## Backend: auth is real, the rest is mocked
 
-Sign-up is real: `SignUpView` → `api.signUp` → `POST /api/auth/signup` (a route handler in
-`src/app/api/auth/signup/route.ts`) → hvnBFF `POST /auth/signup`, which stores the user in Postgres.
-The route handler runs on the server and reads `HVN_BFF_URL` at runtime (default
-`http://localhost:8081`, the port docker compose publishes the BFF on), so the browser never calls
-the BFF directly.
+Email and password auth goes through hvnBFF. `src/proxy.ts` forwards every `/api/*` request to
+the BFF (`/api/auth/signin` → `POST /auth/signin`), reading `HVN_BFF_URL` at runtime (default
+`http://localhost:8081`, the port docker compose publishes the BFF on). Because the browser only
+ever talks to the console's origin, the BFF's session cookie is first-party.
 
-Everything else still comes from `mockApi` in `src/lib/api/mock/`, an in-memory implementation of
-`HavenApi` with simulated latency. `src/lib/api/client.ts` spreads the mock and overrides the
-methods that have a BFF endpoint; move each one over the same way as its endpoint lands. Mutations
-in the mock (accept/reject a promotion, redeploy, roll back, edit a hostname, change the domain,
-revoke an agent, create/delete a project) really change the mock data until the page is reloaded.
+The BFF owns the session: it sets the httpOnly cookie on sign-in and sign-up (valid 30 days),
+clears it on sign-out or when it no longer matches a session, and rejects state-changing requests
+from origins not in its `ALLOWED_ORIGINS`. The console never sees the token. The cookie is
+`__Host-haven_session` in production and `haven_session` when the BFF runs with
+`COOKIE_SECURE=false` for local HTTP.
 
-Sign-in is still mocked, so accounts created through sign-up can’t sign in yet. Use
-`demo@haven.dev` / `haven1234`. "Continue with Google/GitHub" signs straight in instead of
-redirecting to the provider. Pages are not protected yet: the console opens without a session.
+Console pages are protected in two layers:
+
+- `src/proxy.ts` redirects to `/signin?next=…` when there is no session cookie, and sends
+  signed-in people from `/signin` and `/signup` to `/projects`. It only looks at the cookie.
+- `SessionGate` (in the console layout) asks the BFF for the session before rendering a page, and
+  sends the user to sign in if the cookie is expired or was signed out elsewhere.
+
+Sign-up signs the new user straight in; there is no email verification yet. "Continue with
+Google/GitHub" shows a "not available yet" message until OAuth exists in the BFF. Forgot password
+and resend verification are still mocked and always succeed.
+
+Everything else (projects, pipelines, deployments, environments, observability, agents) comes
+from `mockApi` in `src/lib/api/mock/`, an in-memory implementation of `HavenApi` with simulated
+latency. `src/lib/api/client.ts` spreads the mock and overrides the methods that have a BFF
+endpoint; move each one over the same way as its endpoint lands. Mock data resets on reload.
 
 ## Notes
 

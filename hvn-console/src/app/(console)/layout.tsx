@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { NavDrawer, RoutedNavDrawer } from "@/components/shell/NavDrawer";
+import { SessionGate } from "@/components/shell/SessionGate";
 import { RoutedTopBar, TopBar } from "@/components/shell/TopBar";
 
 // The drawer and top bar stay mounted across navigations; only the page area swaps.
@@ -13,7 +14,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
         <Suspense fallback={<TopBar pathname={null} />}>
           <RoutedTopBar />
         </Suspense>
-        {children}
+        <SessionGate>{children}</SessionGate>
       </div>
     </div>
   );

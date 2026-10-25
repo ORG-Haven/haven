@@ -21,6 +21,8 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-haven}:${POSTGRES_PASSWORD:-haven}@postgres:5432/${POSTGRES_DB:-haven}?sslmode=disable
+      COOKIE_SECURE: "false"
+      ALLOWED_ORIGINS: http://localhost:${CONSOLE_PORT:-3000}
     ports:
       - "${BFF_PORT:-8081}:8080"
     depends_on:

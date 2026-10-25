@@ -14,6 +14,7 @@ import type {
   SignInInput,
   SignUpInput,
 } from "./types";
+import { ApiError } from "./errors";
 import { request } from "./http";
 import { mockApi } from "./mock/mock-api";
 
@@ -51,23 +52,43 @@ export interface HavenApi {
 
   getSession(): Promise<Session | null>;
   signIn(input: SignInInput): Promise<Session>;
-  /** Creates an unverified account; the user must open the emailed link before signing in. */
-  signUp(input: SignUpInput): Promise<{ email: string }>;
+  /** Creates the account and signs the new user in. */
+  signUp(input: SignUpInput): Promise<Session>;
   signInWithProvider(provider: OAuthProvider): Promise<Session>;
   signOut(): Promise<void>;
   requestPasswordReset(email: string): Promise<void>;
   resendVerification(email: string): Promise<void>;
 }
 
-// hvnBFF only serves sign-up so far; everything else still comes from the in-memory mock.
-// Move each method over as its BFF endpoint lands.
+// Email and password auth goes through hvnBFF, which proxy.ts serves under /api on the console's
+// own origin. The BFF keeps the session in an httpOnly cookie, so these calls never see a token.
+// Everything else still comes from the in-memory mock; move each method over as its BFF endpoint lands.
+interface BffUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+const toSession = ({ user }: { user: BffUser }): Session => ({ user: { name: user.name, email: user.email }, provider: "password" });
+
 export const api: HavenApi = {
   ...mockApi,
-  signUp: async (input) => {
-    const user = await request<{ id: string; name: string; email: string }>("/api/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
-    return { email: user.email };
+  getSession: async () => {
+    try {
+      return toSession(await request<{ user: BffUser }>("/api/auth/session"));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return null;
+      throw err;
+    }
+  },
+  signIn: async (input) =>
+    toSession(await request<{ user: BffUser }>("/api/auth/signin", { method: "POST", body: JSON.stringify(input) })),
+  signUp: async (input) =>
+    toSession(await request<{ user: BffUser }>("/api/auth/signup", { method: "POST", body: JSON.stringify(input) })),
+  signOut: () => request<void>("/api/auth/signout", { method: "POST" }),
+  // TODO: Google and GitHub sign-in need OAuth in hvnBFF. Until then the buttons explain that.
+  signInWithProvider: async (provider) => {
+    const label = provider === "google" ? "Google" : "GitHub";
+    throw new ApiError(501, `Signing in with ${label} isn’t available yet. Use your email and password.`);
   },
 };

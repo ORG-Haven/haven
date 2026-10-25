@@ -306,9 +306,10 @@ export const mockApi: HavenApi = {
     await latency();
     const clean = email.trim().toLowerCase();
     if (db.users.some((u) => u.email === clean)) throw new ApiError(409, "An account with this email already exists.");
-    // The mock has no inbox, so new accounts count as verified straight away.
+    // The mock has no inbox, so new accounts count as verified and are signed straight in.
     db.users.push({ name: name.trim(), email: clean, password, verified: true });
-    return { email: clean };
+    db.session = { user: { name: name.trim(), email: clean }, provider: "password" };
+    return structuredClone(db.session);
   },
 
   signInWithProvider: async (provider: OAuthProvider) => {

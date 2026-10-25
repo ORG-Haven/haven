@@ -6,13 +6,15 @@ import (
 	"time"
 
 	"hvnBff/internal/modules/auth"
+	"hvnBff/internal/transport"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewRouter(pool *pgxpool.Pool, authHandler *auth.Handler) http.Handler {
+func NewRouter(pool *pgxpool.Pool, authHandler *auth.Handler, allowedOrigins []string) http.Handler {
 	r := chi.NewRouter()
+	r.Use(transport.CheckOrigin(allowedOrigins))
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -30,7 +32,12 @@ func NewRouter(pool *pgxpool.Pool, authHandler *auth.Handler) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Post("/auth/signup", authHandler.SignUp)
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/signup", authHandler.SignUp)
+		r.Post("/signin", authHandler.SignIn)
+		r.Get("/session", authHandler.Session)
+		r.Post("/signout", authHandler.SignOut)
+	})
 
 	return r
 }

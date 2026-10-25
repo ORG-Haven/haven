@@ -1,6 +1,9 @@
 package auth
 
-import "hvnBff/internal/modules/users"
+import (
+	"hvnBff/internal/modules/users"
+	"time"
+)
 
 type UserCreateReq struct {
 	Name     string `json:"name"`
@@ -12,4 +15,19 @@ type UserCreateResp struct {
 	Id    users.ID `json:"id"`
 	Name  string   `json:"name"`
 	Email string   `json:"email"`
+}
+
+type SignInReq struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type SessionResp struct {
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+type AuthResp struct {
+	User    UserCreateResp `json:"user"`
+	Session SessionResp    `json:"session"`
 }

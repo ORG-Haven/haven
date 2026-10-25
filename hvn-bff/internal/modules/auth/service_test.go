@@ -8,19 +8,6 @@ import (
 	"testing"
 )
 
-type fakeStore struct {
-	err     error
-	created []users.User
-}
-
-func (f *fakeStore) Create(_ context.Context, u users.User) error {
-	if f.err != nil {
-		return f.err
-	}
-	f.created = append(f.created, u)
-	return nil
-}
-
 func TestAppSignUp(t *testing.T) {
 	valid := UserCreateReq{Name: "Ada Lovelace", Email: "ada@example.com", Password: "harbor123"}
 
@@ -46,7 +33,7 @@ func TestAppSignUp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := &fakeStore{err: tt.storeErr}
-			resp, err := NewService(store).AppSignUp(context.Background(), tt.req)
+			resp, err := NewService(store, newFakeSessions()).AppSignUp(context.Background(), tt.req)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
@@ -73,7 +60,7 @@ func TestAppSignUp(t *testing.T) {
 
 func TestAppSignUpNormalisesInput(t *testing.T) {
 	store := &fakeStore{}
-	resp, err := NewService(store).AppSignUp(context.Background(), UserCreateReq{
+	resp, err := NewService(store, newFakeSessions()).AppSignUp(context.Background(), UserCreateReq{
 		Name: "  Ada Lovelace \n", Email: " Ada@Example.COM ", Password: "harbor123",
 	})
 	if err != nil {

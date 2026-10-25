@@ -39,7 +39,7 @@ export function SignUpView() {
     if (Object.values(errors).some(Boolean)) return;
     signUp.mutate(
       { name, email, password },
-      { onSuccess: ({ email }) => router.push(`/verify-email?email=${encodeURIComponent(email)}`) },
+      { onSuccess: () => router.replace("/projects") },
     );
   };
 
