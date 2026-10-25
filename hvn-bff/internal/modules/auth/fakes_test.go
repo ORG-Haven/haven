@@ -4,6 +4,7 @@ import (
 	"context"
 	"hvnBff/internal/modules/sessions"
 	"hvnBff/internal/modules/users"
+	"hvnBff/internal/transport"
 	"time"
 )
 
@@ -64,4 +65,59 @@ func (f *fakeSessions) Delete(_ context.Context, tokenHash string) error {
 
 func signedUpUserWithoutPassword() users.User {
 	return users.User{Id: users.NewID(), Name: "OAuth", Email: "oauth@example.com"}
+}
+
+// testLimiter keys by the test request's RemoteAddr and counts in memory.
+func testLimiter() *SignInLimiter {
+	return NewSignInLimiter(func(_ string, limit int, window time.Duration) RateCounter {
+		return &memCounter{limit: limit, window: window, entries: map[string]*memEntry{}}
+	}, transport.ClientIP(0))
+}
+
+// memCounter is an in-memory RateCounter with the same fixed-window rules as ratelimit.Counter.
+type memCounter struct {
+	limit   int
+	window  time.Duration
+	entries map[string]*memEntry
+}
+
+type memEntry struct {
+	count   int
+	resetAt time.Time
+}
+
+func (m *memCounter) current(key string) *memEntry {
+	e, ok := m.entries[key]
+	if !ok || !time.Now().Before(e.resetAt) {
+		e = &memEntry{resetAt: time.Now().Add(m.window)}
+		m.entries[key] = e
+	}
+	return e
+}
+
+func (m *memCounter) Allow(_ context.Context, key string) (bool, time.Duration, error) {
+	e := m.current(key)
+	e.count++
+	if e.count > m.limit {
+		return false, time.Until(e.resetAt), nil
+	}
+	return true, 0, nil
+}
+
+func (m *memCounter) Blocked(_ context.Context, key string) (bool, time.Duration, error) {
+	e := m.current(key)
+	if e.count >= m.limit {
+		return true, time.Until(e.resetAt), nil
+	}
+	return false, 0, nil
+}
+
+func (m *memCounter) Hit(ctx context.Context, key string) error {
+	_, _, err := m.Allow(ctx, key)
+	return err
+}
+
+func (m *memCounter) Reset(_ context.Context, key string) error {
+	delete(m.entries, key)
+	return nil
 }

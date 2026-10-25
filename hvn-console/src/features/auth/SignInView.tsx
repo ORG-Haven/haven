@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ActionButton } from "@/components/ui";
+import { ApiError } from "@/lib/api/errors";
 import { errorMessage } from "@/lib/format";
 import { useSignIn } from "@/lib/queries";
 import { AuthPanel } from "./AuthPanel";
@@ -14,6 +15,8 @@ function nextPath() {
   const next = new URLSearchParams(window.location.search).get("next");
   return next?.startsWith("/") && !next.startsWith("//") ? next : "/projects";
 }
+
+const rateLimited = (err: unknown) => err instanceof ApiError && err.status === 429;
 
 export function SignInView() {
   const router = useRouter();
@@ -43,7 +46,9 @@ export function SignInView() {
 
           {signIn.isError && (
             <ErrorBanner>
-              {errorMessage(signIn.error)} Try again or <Link href="/forgot-password">reset your password</Link>.
+              {errorMessage(signIn.error)}{" "}
+              {rateLimited(signIn.error) ? "If you’ve forgotten it, " : "Try again or "}
+              <Link href="/forgot-password">reset your password</Link>.
             </ErrorBanner>
           )}
 

@@ -10,10 +10,11 @@ import (
 type Handler struct {
 	service *Service
 	cookie  CookieConfig
+	limiter *SignInLimiter
 }
 
-func NewHandler(service *Service, cookie CookieConfig) *Handler {
-	return &Handler{service: service, cookie: cookie}
+func NewHandler(service *Service, cookie CookieConfig, limiter *SignInLimiter) *Handler {
+	return &Handler{service: service, cookie: cookie, limiter: limiter}
 }
 
 // SignUp handles POST /auth/signup with {"name","email","password"}. It signs the new user in
@@ -36,6 +37,7 @@ func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 }
 
 // SignIn handles POST /auth/signin with {"email","password"} and sets the session cookie.
+// Attempts are rate limited per client address and per account (see SignInLimiter).
 func (h *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInReq
 	if err := transport.ReadJSON(w, r, &req); err != nil {
@@ -43,12 +45,22 @@ func (h *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	key := limiterKey(req.Email)
+	if refuse, wait := h.limiter.before(r, key); refuse {
+		writeTooManyAttempts(w, wait)
+		return
+	}
+
 	resp, err := h.service.SignIn(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			h.limiter.failed(r.Context(), key)
+		}
 		status, msg := authError(err)
 		transport.WriteError(w, status, msg)
 		return
 	}
+	h.limiter.succeeded(r.Context(), key)
 	h.cookie.set(w, resp.Session.Token, resp.Session.ExpiresAt)
 	transport.WriteJSON(w, http.StatusOK, userBody{User: resp.User})
 }

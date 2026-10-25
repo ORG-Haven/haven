@@ -7,14 +7,19 @@ import (
 	"hvnBff/internal/modules/auth"
 	"hvnBff/internal/modules/sessions"
 	"hvnBff/internal/modules/users"
+	"hvnBff/internal/ratelimit"
 	"hvnBff/internal/server"
+	"hvnBff/internal/transport"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -36,14 +41,24 @@ func main() {
 	}
 
 	sessionRepo := sessions.NewRepository(pool)
-	go sweepExpiredSessions(ctx, sessionRepo)
+	go sweepExpired(ctx, pool, sessionRepo)
 
 	cookie := auth.CookieConfig{Secure: os.Getenv("COOKIE_SECURE") != "false"}
 	if !cookie.Secure {
 		log.Printf("COOKIE_SECURE=false: the session cookie is sent over plain HTTP. Use only for local development.")
 	}
 
-	authHandler := auth.NewHandler(auth.NewService(users.NewRepository(pool), sessionRepo), cookie)
+	// TRUSTED_PROXY_HOPS: how many proxies in front of the BFF append to X-Forwarded-For
+	// (the console's Next server is one). 0 uses the TCP peer address.
+	hops, err := strconv.Atoi(os.Getenv("TRUSTED_PROXY_HOPS"))
+	if err != nil || hops < 0 {
+		hops = 0
+	}
+	limiter := auth.NewSignInLimiter(func(scope string, limit int, window time.Duration) auth.RateCounter {
+		return ratelimit.New(pool, scope, limit, window)
+	}, transport.ClientIP(hops))
+
+	authHandler := auth.NewHandler(auth.NewService(users.NewRepository(pool), sessionRepo), cookie, limiter)
 	router := server.NewRouter(pool, authHandler, allowedOrigins())
 
 	port := os.Getenv("PORT")
@@ -108,18 +123,21 @@ func allowedOrigins() []string {
 	return origins
 }
 
-// sweepExpiredSessions deletes expired sessions every hour until ctx is cancelled.
-// Lookups already ignore expired rows; this only keeps the table small.
-func sweepExpiredSessions(ctx context.Context, repo *sessions.Repository) {
+// sweepExpired deletes expired sessions and finished rate-limit windows every hour until ctx is
+// cancelled. Lookups already ignore expired rows; this only keeps the tables small.
+func sweepExpired(ctx context.Context, pool *pgxpool.Pool, sessionRepo *sessions.Repository) {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
-		if n, err := repo.DeleteExpired(ctx); err != nil {
+		if n, err := sessionRepo.DeleteExpired(ctx); err != nil {
 			if ctx.Err() == nil {
 				log.Printf("Could not delete expired sessions: %v", err)
 			}
 		} else if n > 0 {
 			log.Printf("Deleted %d expired sessions", n)
+		}
+		if _, err := ratelimit.DeleteExpired(ctx, pool); err != nil && ctx.Err() == nil {
+			log.Printf("Could not delete expired rate limits: %v", err)
 		}
 		select {
 		case <-ctx.Done():

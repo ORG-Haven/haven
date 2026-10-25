@@ -26,7 +26,7 @@ func TestSignUpHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewHandler(NewService(&fakeStore{err: tt.storeErr}, newFakeSessions()), CookieConfig{Secure: true})
+			h := NewHandler(NewService(&fakeStore{err: tt.storeErr}, newFakeSessions()), CookieConfig{Secure: true}, testLimiter())
 			rec := httptest.NewRecorder()
 			h.SignUp(rec, httptest.NewRequest(http.MethodPost, "/auth/signup", strings.NewReader(tt.body)))
 
@@ -66,7 +66,7 @@ func sessionCookie(t *testing.T, rec *httptest.ResponseRecorder) *http.Cookie {
 
 func TestSessionAndSignOutHandlers(t *testing.T) {
 	svc, _, _ := signedUpService(t)
-	h := NewHandler(svc, CookieConfig{Secure: true})
+	h := NewHandler(svc, CookieConfig{Secure: true}, testLimiter())
 
 	rec := httptest.NewRecorder()
 	h.SignIn(rec, httptest.NewRequest(http.MethodPost, "/auth/signin", strings.NewReader(`{"email":"ada@example.com","password":"harbor123"}`)))
@@ -131,7 +131,7 @@ func TestSessionAndSignOutHandlers(t *testing.T) {
 }
 
 func TestInsecureCookieForLocalHTTP(t *testing.T) {
-	h := NewHandler(NewService(&fakeStore{}, newFakeSessions()), CookieConfig{Secure: false})
+	h := NewHandler(NewService(&fakeStore{}, newFakeSessions()), CookieConfig{Secure: false}, testLimiter())
 	rec := httptest.NewRecorder()
 	h.SignUp(rec, httptest.NewRequest(http.MethodPost, "/auth/signup", strings.NewReader(`{"name":"Ada","email":"ada@example.com","password":"harbor123"}`)))
 	cookies := rec.Result().Cookies()
