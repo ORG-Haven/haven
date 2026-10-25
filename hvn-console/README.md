@@ -26,20 +26,23 @@ npm run lint
 | `src/lib/api/client.ts` | `HavenApi`, the interface the hooks call. |
 | `src/lib/api/mock/` | In-memory mock of the backend used today. |
 
-## Backend: currently mocked
+## Backend: mostly mocked
 
-No backend service is called yet. `src/lib/api/client.ts` exports `api = mockApi`, an
-in-memory implementation of `HavenApi` with simulated latency. Mutations (accept/reject a
-promotion, redeploy, roll back, edit a hostname, change the domain, revoke an agent,
-create/delete a project) really change the mock data, so the UI stays consistent until the page is
-reloaded, which resets it.
+Sign-up is real: `SignUpView` → `api.signUp` → `POST /api/auth/signup` (a route handler in
+`src/app/api/auth/signup/route.ts`) → hvnBFF `POST /auth/signup`, which stores the user in Postgres.
+The route handler runs on the server and reads `HVN_BFF_URL` at runtime (default
+`http://localhost:8081`, the port docker compose publishes the BFF on), so the browser never calls
+the BFF directly.
 
-Auth is mocked the same way. Sign in with `demo@haven.dev` / `haven1234`, or create an account
-(the mock skips email verification). "Continue with Google/GitHub" signs straight in instead of
+Everything else still comes from `mockApi` in `src/lib/api/mock/`, an in-memory implementation of
+`HavenApi` with simulated latency. `src/lib/api/client.ts` spreads the mock and overrides the
+methods that have a BFF endpoint; move each one over the same way as its endpoint lands. Mutations
+in the mock (accept/reject a promotion, redeploy, roll back, edit a hostname, change the domain,
+revoke an agent, create/delete a project) really change the mock data until the page is reloaded.
+
+Sign-in is still mocked, so accounts created through sign-up can’t sign in yet. Use
+`demo@haven.dev` / `haven1234`. "Continue with Google/GitHub" signs straight in instead of
 redirecting to the provider. Pages are not protected yet: the console opens without a session.
-
-To connect the real hvnBFF, implement `HavenApi` with HTTP calls and point `api` at it. Pages and
-hooks do not need to change.
 
 ## Notes
 

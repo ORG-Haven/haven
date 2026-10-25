@@ -31,7 +31,6 @@ services:
     build: ./hvn-console
     restart: unless-stopped
     environment:
-      # Not read yet: the console still uses its in-memory mock (src/lib/api/client.ts).
       HVN_BFF_URL: http://hvn-bff:8080
     ports:
       - "${CONSOLE_PORT:-3000}:3000"

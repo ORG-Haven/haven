@@ -5,9 +5,10 @@ import "github.com/google/uuid"
 type ID string
 
 type User struct {
-	Id    ID
-	Name  string
-	Email string
+	Id           ID
+	Name         string
+	Email        string
+	PasswordHash string
 }
 
 func NewID() ID {

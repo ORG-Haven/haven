@@ -14,6 +14,7 @@ import type {
   SignInInput,
   SignUpInput,
 } from "./types";
+import { request } from "./http";
 import { mockApi } from "./mock/mock-api";
 
 /**
@@ -58,5 +59,15 @@ export interface HavenApi {
   resendVerification(email: string): Promise<void>;
 }
 
-// TODO: replace with an HTTP client for hvnBFF once its endpoints exist.
-export const api: HavenApi = mockApi;
+// hvnBFF only serves sign-up so far; everything else still comes from the in-memory mock.
+// Move each method over as its BFF endpoint lands.
+export const api: HavenApi = {
+  ...mockApi,
+  signUp: async (input) => {
+    const user = await request<{ id: string; name: string; email: string }>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return { email: user.email };
+  },
+};

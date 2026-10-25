@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"hvnBff/internal/db"
+	"hvnBff/internal/modules/auth"
+	"hvnBff/internal/modules/users"
 	"hvnBff/internal/server"
 	"log"
 	"net/http"
@@ -31,7 +33,8 @@ func main() {
 		log.Fatalf("Could not migrate the database: %v", err)
 	}
 
-	router := server.NewRouter(pool)
+	authHandler := auth.NewHandler(auth.NewService(users.NewRepository(pool)))
+	router := server.NewRouter(pool, authHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

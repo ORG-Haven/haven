@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"hvnBff/internal/modules/auth"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewRouter(pool *pgxpool.Pool) http.Handler {
+func NewRouter(pool *pgxpool.Pool, authHandler *auth.Handler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +29,8 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+
+	r.Post("/auth/signup", authHandler.SignUp)
 
 	return r
 }
