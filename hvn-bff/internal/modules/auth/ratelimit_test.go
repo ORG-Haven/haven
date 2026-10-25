@@ -109,7 +109,8 @@ func TestSignInWhenLimiterFails(t *testing.T) {
 }
 
 func signUpAs(h *Handler, email, ip string) *httptest.ResponseRecorder {
-	body := fmt.Sprintf(`{"name":"Ada","email":%q,"password":"harbor123"}`, email)
+	username, _, _ := strings.Cut(email, "@")
+	body := fmt.Sprintf(`{"username":%q,"email":%q,"password":"harbor123"}`, username, email)
 	req := httptest.NewRequest(http.MethodPost, "/auth/signup", strings.NewReader(body))
 	req.RemoteAddr = ip + ":40000"
 	rec := httptest.NewRecorder()

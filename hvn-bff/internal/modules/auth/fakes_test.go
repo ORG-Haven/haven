@@ -14,9 +14,18 @@ type fakeStore struct {
 	created []users.User
 }
 
+// Create enforces unique usernames and emails, like the Postgres indexes.
 func (f *fakeStore) Create(_ context.Context, u users.User) error {
 	if f.err != nil {
 		return f.err
+	}
+	for _, c := range f.created {
+		if c.Username == u.Username {
+			return users.ErrUsernameTaken
+		}
+		if c.Email == u.Email {
+			return users.ErrEmailTaken
+		}
 	}
 	f.created = append(f.created, u)
 	return nil
@@ -64,7 +73,7 @@ func (f *fakeSessions) Delete(_ context.Context, tokenHash string) error {
 }
 
 func signedUpUserWithoutPassword() users.User {
-	return users.User{Id: users.NewID(), Name: "OAuth", Email: "oauth@example.com"}
+	return users.User{Id: users.NewID(), Username: "oauth-user", Email: "oauth@example.com"}
 }
 
 // testLimiter keys by the test request's RemoteAddr and counts in memory.

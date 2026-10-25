@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrNotFound   = errors.New("user not found")
-	ErrEmailTaken = errors.New("email already in use")
+	ErrNotFound      = errors.New("user not found")
+	ErrEmailTaken    = errors.New("email already in use")
+	ErrUsernameTaken = errors.New("username already in use")
 )
 
 // Postgres unique_violation.
@@ -28,11 +29,15 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) Create(ctx context.Context, u User) error {
 	_, err := r.pool.Exec(ctx,
-		"INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, NULLIF($4, ''))",
-		string(u.Id), u.Name, u.Email, u.PasswordHash,
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, NULLIF($4, ''))",
+		string(u.Id), u.Username, u.Email, u.PasswordHash,
 	)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+		// The index names come from migrations 0001 and 0005.
+		if pgErr.ConstraintName == "users_username_key" {
+			return ErrUsernameTaken
+		}
 		return ErrEmailTaken
 	}
 	if err != nil {
@@ -44,9 +49,9 @@ func (r *Repository) Create(ctx context.Context, u User) error {
 func (r *Repository) GetByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := r.pool.QueryRow(ctx,
-		"SELECT id::text, name, email, coalesce(password_hash, '') FROM users WHERE lower(email) = lower($1)",
+		"SELECT id::text, username, email, coalesce(password_hash, '') FROM users WHERE lower(email) = lower($1)",
 		email,
-	).Scan(&u.Id, &u.Name, &u.Email, &u.PasswordHash)
+	).Scan(&u.Id, &u.Username, &u.Email, &u.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

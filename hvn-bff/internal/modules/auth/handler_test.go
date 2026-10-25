@@ -17,11 +17,13 @@ func TestSignUpHandler(t *testing.T) {
 		storeErr   error
 		wantStatus int
 	}{
-		{name: "created", body: `{"name":"Ada","email":"ada@example.com","password":"harbor123"}`, wantStatus: http.StatusCreated},
-		{name: "bad json", body: `{"name":`, wantStatus: http.StatusBadRequest},
-		{name: "invalid email", body: `{"name":"Ada","email":"nope","password":"harbor123"}`, wantStatus: http.StatusBadRequest},
-		{name: "email taken", body: `{"name":"Ada","email":"ada@example.com","password":"harbor123"}`, storeErr: users.ErrEmailTaken, wantStatus: http.StatusConflict},
-		{name: "database failure", body: `{"name":"Ada","email":"ada@example.com","password":"harbor123"}`, storeErr: errors.New("boom"), wantStatus: http.StatusInternalServerError},
+		{name: "created", body: `{"username":"ada","email":"ada@example.com","password":"harbor123"}`, wantStatus: http.StatusCreated},
+		{name: "bad json", body: `{"username":`, wantStatus: http.StatusBadRequest},
+		{name: "invalid email", body: `{"username":"ada","email":"nope","password":"harbor123"}`, wantStatus: http.StatusBadRequest},
+		{name: "email taken", body: `{"username":"ada","email":"ada@example.com","password":"harbor123"}`, storeErr: users.ErrEmailTaken, wantStatus: http.StatusConflict},
+		{name: "username taken", body: `{"username":"ada","email":"ada@example.com","password":"harbor123"}`, storeErr: users.ErrUsernameTaken, wantStatus: http.StatusConflict},
+		{name: "invalid username", body: `{"username":"Ada Lovelace","email":"ada@example.com","password":"harbor123"}`, wantStatus: http.StatusBadRequest},
+		{name: "database failure", body: `{"username":"ada","email":"ada@example.com","password":"harbor123"}`, storeErr: errors.New("boom"), wantStatus: http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
@@ -48,6 +50,9 @@ func TestSignUpHandler(t *testing.T) {
 				}
 			} else if body["message"] == "" || body["message"] == nil {
 				t.Errorf("error body has no message: %v", body)
+			}
+			if want := map[string]string{"email taken": "email_taken", "username taken": "username_taken"}[tt.name]; want != "" && body["code"] != want {
+				t.Errorf("code = %v, want %s", body["code"], want)
 			}
 		})
 	}
@@ -94,17 +99,17 @@ func TestSessionAndSignOutHandlers(t *testing.T) {
 		return func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+v) }
 	}
 
-	if got := call(h.Session, http.MethodGet, withCookie(token)).Code; got != http.StatusOK {
+	if got := call(h.RequireSession(http.HandlerFunc(h.Session)).ServeHTTP, http.MethodGet, withCookie(token)).Code; got != http.StatusOK {
 		t.Errorf("session with cookie = %d, want 200", got)
 	}
-	if got := call(h.Session, http.MethodGet, withBearer(token)).Code; got != http.StatusOK {
+	if got := call(h.RequireSession(http.HandlerFunc(h.Session)).ServeHTTP, http.MethodGet, withBearer(token)).Code; got != http.StatusOK {
 		t.Errorf("session with bearer token = %d, want 200", got)
 	}
-	if got := call(h.Session, http.MethodGet, nil).Code; got != http.StatusUnauthorized {
+	if got := call(h.RequireSession(http.HandlerFunc(h.Session)).ServeHTTP, http.MethodGet, nil).Code; got != http.StatusUnauthorized {
 		t.Errorf("session without credentials = %d, want 401", got)
 	}
 
-	stale := call(h.Session, http.MethodGet, withCookie("forged"))
+	stale := call(h.RequireSession(http.HandlerFunc(h.Session)).ServeHTTP, http.MethodGet, withCookie("forged"))
 	if stale.Code != http.StatusUnauthorized {
 		t.Errorf("session with stale cookie = %d, want 401", stale.Code)
 	}
@@ -119,7 +124,7 @@ func TestSessionAndSignOutHandlers(t *testing.T) {
 	if ck := sessionCookie(t, out); ck.MaxAge >= 0 {
 		t.Errorf("sign-out did not clear the cookie: %+v", ck)
 	}
-	if got := call(h.Session, http.MethodGet, withCookie(token)).Code; got != http.StatusUnauthorized {
+	if got := call(h.RequireSession(http.HandlerFunc(h.Session)).ServeHTTP, http.MethodGet, withCookie(token)).Code; got != http.StatusUnauthorized {
 		t.Errorf("session after sign-out = %d, want 401", got)
 	}
 
@@ -133,7 +138,7 @@ func TestSessionAndSignOutHandlers(t *testing.T) {
 func TestInsecureCookieForLocalHTTP(t *testing.T) {
 	h := NewHandler(NewService(&fakeStore{}, newFakeSessions()), CookieConfig{Secure: false}, testLimiter())
 	rec := httptest.NewRecorder()
-	h.SignUp(rec, httptest.NewRequest(http.MethodPost, "/auth/signup", strings.NewReader(`{"name":"Ada","email":"ada@example.com","password":"harbor123"}`)))
+	h.SignUp(rec, httptest.NewRequest(http.MethodPost, "/auth/signup", strings.NewReader(`{"username":"ada","email":"ada@example.com","password":"harbor123"}`)))
 	cookies := rec.Result().Cookies()
 	if len(cookies) != 1 || cookies[0].Name != insecureCookieName || cookies[0].Secure {
 		t.Fatalf("cookies = %+v, want one non-Secure %s", cookies, insecureCookieName)

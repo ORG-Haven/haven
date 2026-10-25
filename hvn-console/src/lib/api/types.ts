@@ -160,7 +160,7 @@ export interface CreateProjectInput {
 export type OAuthProvider = "google" | "github";
 
 export interface User {
-  name: string;
+  username: string;
   email: string;
 }
 
@@ -175,7 +175,7 @@ export interface SignInInput {
 }
 
 export interface SignUpInput {
-  name: string;
+  username: string;
   email: string;
   password: string;
 }

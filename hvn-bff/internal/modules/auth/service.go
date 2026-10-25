@@ -33,11 +33,11 @@ func NewService(userStore UserStore, sessionStore SessionStore) *Service {
 }
 
 func (s *Service) AppSignUp(ctx context.Context, req UserCreateReq) (UserCreateResp, error) {
-	name := strings.TrimSpace(req.Name)
+	username := strings.ToLower(strings.TrimSpace(req.Username))
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
-	if name == "" {
-		return UserCreateResp{}, ErrInvalidName
+	if !IsValidUsername(username) {
+		return UserCreateResp{}, ErrInvalidUsername
 	}
 	if !isValidEmail(email) {
 		return UserCreateResp{}, ErrInvalidEmail
@@ -54,7 +54,7 @@ func (s *Service) AppSignUp(ctx context.Context, req UserCreateReq) (UserCreateR
 
 	newUser := users.User{
 		Id:           users.NewID(),
-		Name:         name,
+		Username:     username,
 		Email:        email,
 		PasswordHash: hash,
 	}
@@ -62,14 +62,17 @@ func (s *Service) AppSignUp(ctx context.Context, req UserCreateReq) (UserCreateR
 		if errors.Is(err, users.ErrEmailTaken) {
 			return UserCreateResp{}, ErrEmailTaken
 		}
+		if errors.Is(err, users.ErrUsernameTaken) {
+			return UserCreateResp{}, ErrUsernameTaken
+		}
 		slog.ErrorContext(ctx, "create user", "err", err)
 		return UserCreateResp{}, ErrCreateUser
 	}
 
 	return UserCreateResp{
-		Id:    newUser.Id,
-		Name:  newUser.Name,
-		Email: newUser.Email,
+		Id:       newUser.Id,
+		Username: newUser.Username,
+		Email:    newUser.Email,
 	}, nil
 }
 

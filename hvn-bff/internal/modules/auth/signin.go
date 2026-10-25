@@ -103,7 +103,7 @@ func hashToken(token string) string {
 }
 
 func toUserResp(u users.User) UserCreateResp {
-	return UserCreateResp{Id: u.Id, Name: u.Name, Email: u.Email}
+	return UserCreateResp{Id: u.Id, Username: u.Username, Email: u.Email}
 }
 
 // SignUp creates the account and signs the new user straight in.
@@ -112,5 +112,5 @@ func (s *Service) SignUp(ctx context.Context, req UserCreateReq) (AuthResp, erro
 	if err != nil {
 		return AuthResp{}, err
 	}
-	return s.startSession(ctx, users.User{Id: created.Id, Name: created.Name, Email: created.Email})
+	return s.startSession(ctx, users.User{Id: created.Id, Username: created.Username, Email: created.Email})
 }

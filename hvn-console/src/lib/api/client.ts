@@ -65,11 +65,11 @@ export interface HavenApi {
 // Everything else still comes from the in-memory mock; move each method over as its BFF endpoint lands.
 interface BffUser {
   id: string;
-  name: string;
+  username: string;
   email: string;
 }
 
-const toSession = ({ user }: { user: BffUser }): Session => ({ user: { name: user.name, email: user.email }, provider: "password" });
+const toSession = ({ user }: { user: BffUser }): Session => ({ user: { username: user.username, email: user.email }, provider: "password" });
 
 export const api: HavenApi = {
   ...mockApi,

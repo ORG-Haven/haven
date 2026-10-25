@@ -43,11 +43,11 @@ func (r *Repository) Create(ctx context.Context, s Session) error {
 func (r *Repository) UserByToken(ctx context.Context, tokenHash string) (users.User, error) {
 	var u users.User
 	err := r.pool.QueryRow(ctx, `
-		SELECT u.id::text, u.name, u.email
+		SELECT u.id::text, u.username, u.email
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = $1 AND s.expires_at > now()`,
 		tokenHash,
-	).Scan(&u.Id, &u.Name, &u.Email)
+	).Scan(&u.Id, &u.Username, &u.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return users.User{}, ErrNotFound
 	}

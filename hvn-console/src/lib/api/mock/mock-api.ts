@@ -24,7 +24,7 @@ import {
 const db = {
   projects: seedProjects(),
   repos: SEED_REPOS,
-  users: [{ name: "Demo User", email: "demo@haven.dev", password: "haven1234", verified: true }],
+  users: [{ username: "demo", email: "demo@haven.dev", password: "haven1234", verified: true }],
   session: null as Session | null,
 };
 let nextId = 100;
@@ -298,17 +298,19 @@ export const mockApi: HavenApi = {
     const u = db.users.find((x) => x.email === email.trim().toLowerCase());
     if (!u || u.password !== password) throw new ApiError(401, "That email and password don’t match.");
     if (!u.verified) throw new ApiError(403, "Verify your email before signing in. Check your inbox for the link.");
-    db.session = { user: { name: u.name, email: u.email }, provider: "password" };
+    db.session = { user: { username: u.username, email: u.email }, provider: "password" };
     return structuredClone(db.session);
   },
 
-  signUp: async ({ name, email, password }) => {
+  signUp: async ({ username, email, password }) => {
     await latency();
     const clean = email.trim().toLowerCase();
-    if (db.users.some((u) => u.email === clean)) throw new ApiError(409, "An account with this email already exists.");
+    if (db.users.some((u) => u.email === clean)) throw new ApiError(409, "An account with this email already exists.", "email_taken");
     // The mock has no inbox, so new accounts count as verified and are signed straight in.
-    db.users.push({ name: name.trim(), email: clean, password, verified: true });
-    db.session = { user: { name: name.trim(), email: clean }, provider: "password" };
+    const handle = username.trim().toLowerCase();
+    if (db.users.some((u) => u.username === handle)) throw new ApiError(409, "That username is taken. Try another.", "username_taken");
+    db.users.push({ username: handle, email: clean, password, verified: true });
+    db.session = { user: { username: handle, email: clean }, provider: "password" };
     return structuredClone(db.session);
   },
 
@@ -316,7 +318,7 @@ export const mockApi: HavenApi = {
     // The real flow redirects to Google or GitHub and back; the mock signs straight in.
     await latency();
     const label = provider === "google" ? "Google" : "GitHub";
-    db.session = { user: { name: `${label} User`, email: `you@${provider}.example` }, provider };
+    db.session = { user: { username: `${provider}-user`, email: `you@${provider}.example` }, provider };
     return structuredClone(db.session);
   },
 

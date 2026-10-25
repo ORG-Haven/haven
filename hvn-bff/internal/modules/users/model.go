@@ -6,7 +6,7 @@ type ID string
 
 type User struct {
 	Id           ID
-	Name         string
+	Username     string
 	Email        string
 	PasswordHash string
 }

@@ -58,16 +58,17 @@ export function TopBar({ pathname }: { pathname: string | null }) {
         >
           <Icon name="logout" />
         </button>
-        <button className="ib" aria-label={user ? `Account menu for ${user.name}` : "Account menu"} title={user?.email}>
-          <span className="avatar">{initials(user?.name)}</span>
+        <button className="ib" aria-label={user ? `Account menu for ${user.username}` : "Account menu"} title={user?.email}>
+          <span className="avatar">{initials(user?.username)}</span>
         </button>
       </div>
     </header>
   );
 }
 
-function initials(name?: string) {
-  if (!name) return "";
-  const parts = name.trim().split(/\s+/);
+/** "ada-lovelace" → "AL", "ada" → "A". */
+function initials(username?: string) {
+  if (!username) return "";
+  const parts = username.split("-").filter(Boolean);
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }

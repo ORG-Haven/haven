@@ -32,11 +32,17 @@ func NewRouter(pool *pgxpool.Pool, authHandler *auth.Handler, allowedOrigins []s
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", authHandler.SignUp)
-		r.Post("/signin", authHandler.SignIn)
-		r.Get("/session", authHandler.Session)
-		r.Post("/signout", authHandler.SignOut)
+	// Public endpoints are listed here on purpose. Everything else goes in the protected group
+	// below, so a new endpoint needs a session unless someone decides otherwise.
+	r.Group(func(r chi.Router) {
+		r.Post("/auth/signup", authHandler.SignUp)
+		r.Post("/auth/signin", authHandler.SignIn)
+		r.Post("/auth/signout", authHandler.SignOut)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(authHandler.RequireSession)
+		r.Get("/auth/session", authHandler.Session)
 	})
 
 	return r

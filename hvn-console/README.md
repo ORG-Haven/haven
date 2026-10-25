@@ -45,6 +45,11 @@ Console pages are protected in two layers:
   signed-in people from `/signin` and `/signup` to `/projects`. It only looks at the cookie.
 - `SessionGate` (in the console layout) asks the BFF for the session before rendering a page, and
   sends the user to sign in if the cookie is expired or was signed out elsewhere.
+- Any API call that gets a 401 clears the cached session (`src/app/providers.tsx`), so
+  `SessionGate` sends the user to sign in when a session ends mid-use.
+
+Neither layer is the security boundary: the BFF's `RequireSession` middleware is. Every BFF
+route needs a session unless it is listed as public in `hvn-bff/internal/server/routes.go`.
 
 Sign-up signs the new user straight in; there is no email verification yet. "Continue with
 Google/GitHub" shows a "not available yet" message until OAuth exists in the BFF. Forgot password

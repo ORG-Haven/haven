@@ -16,12 +16,15 @@ const RULES = [
   { label: "Contains a number", test: (p: string) => /[0-9]/.test(p) },
 ];
 
-const accountExists = (err: unknown) => err instanceof ApiError && err.status === 409;
+const accountExists = (err: unknown) => err instanceof ApiError && err.code === "email_taken";
+
+// Same rule as hvnBFF: 3 to 32 of a-z, 0-9 and hyphens, starting and ending with a letter or digit.
+const isUsername = (v: string) => /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/.test(v);
 
 export function SignUpView() {
   const router = useRouter();
   const signUp = useSignUp();
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -29,7 +32,11 @@ export function SignUpView() {
   const [tried, setTried] = useState(false);
 
   const errors = {
-    name: !name.trim() ? "Enter your name" : null,
+    username: !username
+      ? "Choose a username"
+      : isUsername(username)
+        ? null
+        : "Use 3–32 lowercase letters, numbers or hyphens, starting and ending with a letter or number",
     email: !isEmail(email) ? "Enter a valid email address" : null,
     password: RULES.every((r) => r.test(password)) ? null : "Password doesn’t meet the requirements",
     terms: agreed ? null : "Accept the terms to continue",
@@ -41,7 +48,7 @@ export function SignUpView() {
     setTried(true);
     if (Object.values(errors).some(Boolean)) return;
     signUp.mutate(
-      { name, email, password },
+      { username, email, password },
       { onSuccess: () => router.replace("/projects") },
     );
   };
@@ -69,10 +76,21 @@ export function SignUpView() {
           )}
 
           <form onSubmit={submit} noValidate style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <label className={`tf${show("name") ? " err" : ""}`}>
-              <span className="tf-l">Full name</span>
-              <input type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} aria-invalid={!!show("name") || undefined} />
-              {show("name") && <span className="tf-s">{show("name")}</span>}
+            <label className={`tf${show("username") ? " err" : ""}`}>
+              <span className="tf-l">Username</span>
+              <input
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={32}
+                placeholder="ada-lovelace"
+                value={username}
+                // Usernames are lower case; typing "Ada" shows "ada" rather than an error.
+                onChange={(e) => setUsername(e.target.value.toLowerCase().trim())}
+                aria-invalid={!!show("username") || undefined}
+              />
+              <span className="tf-s">{show("username") ?? "Letters, numbers and hyphens. You can’t change it later."}</span>
             </label>
             <label className={`tf${show("email") ? " err" : ""}`}>
               <span className="tf-l">Email</span>

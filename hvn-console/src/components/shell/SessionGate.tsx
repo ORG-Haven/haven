@@ -7,8 +7,13 @@ import { errorMessage } from "@/lib/format";
 import { useSession } from "@/lib/queries";
 
 /**
- * Renders the page only once the BFF confirms the session. proxy.ts has already turned away
- * visitors without a cookie; this catches cookies that expired or were signed out elsewhere.
+ * Sends the user to sign in when the BFF says the session is gone: a cookie that expired or
+ * was signed out elsewhere. proxy.ts has already turned away visitors without a cookie.
+ *
+ * The page renders while the session check is in flight rather than waiting for it, so
+ * navigations stay instant (and Next's instant-navigation validation can see the page).
+ * That's safe: the page shows nothing the BFF would refuse, since every data endpoint
+ * checks the session itself.
  */
 export function SessionGate({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -24,6 +29,6 @@ export function SessionGate({ children }: { children: ReactNode }) {
   if (session.isError) {
     return <ErrorState title="Couldn’t check your sign-in" message={errorMessage(session.error)} onRetry={() => session.refetch()} />;
   }
-  if (!session.data) return <PageLoader />;
+  if (signedOut) return <PageLoader label="Signing you out…" />;
   return children;
 }

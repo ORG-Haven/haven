@@ -6,15 +6,15 @@ import (
 )
 
 type UserCreateReq struct {
-	Name     string `json:"name"`
+	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type UserCreateResp struct {
-	Id    users.ID `json:"id"`
-	Name  string   `json:"name"`
-	Email string   `json:"email"`
+	Id       users.ID `json:"id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
 }
 
 type SignInReq struct {

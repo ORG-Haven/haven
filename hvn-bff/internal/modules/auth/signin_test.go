@@ -11,7 +11,7 @@ func signedUpService(t *testing.T) (*Service, *fakeStore, *fakeSessions) {
 	t.Helper()
 	store, sess := &fakeStore{}, newFakeSessions()
 	svc := NewService(store, sess)
-	resp, err := svc.SignUp(context.Background(), UserCreateReq{Name: "Ada", Email: "ada@example.com", Password: "harbor123"})
+	resp, err := svc.SignUp(context.Background(), UserCreateReq{Username: "ada", Email: "ada@example.com", Password: "harbor123"})
 	if err != nil {
 		t.Fatal(err)
 	}
